@@ -1,0 +1,8 @@
+target/
+/data/
+/out/
+*.db
+*.db-shm
+*.db-wal
+.idea/
+*.iml

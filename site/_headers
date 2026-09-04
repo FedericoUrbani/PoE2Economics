@@ -1,0 +1,15 @@
+# Cloudflare Pages / Netlify. I dati cambiano una volta al giorno, la pagina a ogni
+# deploy: cache breve sui JSON con revalidate lunga, nessuna cache sull'HTML.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/data/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate

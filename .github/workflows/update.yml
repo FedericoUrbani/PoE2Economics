@@ -1,0 +1,71 @@
+name: Aggiorna dati
+
+# Ogni giorno riscarica solo la lega in corso e riscrive il JSON del sito.
+# Le leghe chiuse non cambiano piu': stanno nella cache e non vengono ritoccate.
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aggiorna-dati
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # L'archivio storico non sta nel repo (troppo grande e binario):
+      # vive nella cache di Actions. Se la cache scade, il passo dopo
+      # rifa' il backfill completo da zero.
+      - name: Ripristina archivio
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: poe2-db-${{ github.run_id }}
+          restore-keys: |
+            poe2-db-
+
+      - name: Build
+        run: mvn -q -B package
+
+      - name: Backfill
+        env:
+          POE2SCOUT_CONTACT: ${{ secrets.POE2SCOUT_CONTACT }}
+        run: |
+          if [ -f data/poe2.db ]; then
+            echo "Archivio presente: aggiorno solo la lega in corso."
+            java -jar target/poe2economics.jar backfill --refresh-current
+          else
+            echo "Archivio assente: backfill completo."
+            java -jar target/poe2economics.jar backfill
+          fi
+
+      # Il sito legge index.json e le serie storiche. Il backtest per finestre
+      # (--windows) non serve e costa 42 file: si esporta solo a mano, se serve.
+      - name: Export
+        run: java -jar target/poe2economics.jar export
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data
+          if git diff --staged --quiet; then
+            echo "Nessuna variazione."
+          else
+            git commit -m "dati aggiornati $(date -u +%F)"
+            git push
+          fi

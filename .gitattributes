@@ -1,0 +1,4 @@
+# Il workflow committa da Ubuntu, tu dal tuo Windows: senza normalizzazione lo
+# stesso file rimbalzerebbe fra LF e CRLF a ogni commit, e ogni diff sembrerebbe
+# una riscrittura completa.
+* text=auto eol=lf
