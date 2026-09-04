@@ -1,5 +1,6 @@
 package it.urbani.poe2economics.store;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
@@ -22,13 +23,19 @@ public final class Db implements AutoCloseable {
 
     public Db(Path file) {
         try {
+            // su un checkout pulito data/ non esiste (e' in .gitignore) e SQLite non
+            // crea il file se manca la directory padre: e' il motivo per cui il primo
+            // run del workflow falliva dopo 34 secondi
+            Path parent = file.toAbsolutePath().getParent();
+            if (parent != null) Files.createDirectories(parent);
+
             this.c = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath());
             try (Statement s = c.createStatement()) {
                 s.execute("PRAGMA journal_mode=WAL");
                 s.execute("PRAGMA synchronous=NORMAL");
             }
             schema();
-        } catch (SQLException e) {
+        } catch (SQLException | java.io.IOException e) {
             throw new RuntimeException("apertura DB fallita: " + file, e);
         }
     }
